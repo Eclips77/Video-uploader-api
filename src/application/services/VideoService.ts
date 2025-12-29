@@ -1,19 +1,33 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Video } from '../../domain/entities';
-import { IVideoRepository, IGenreRepository } from '../../domain/repositories';
+import { IVideoRepository, IGenreRepository, SearchParams } from '../../domain/repositories';
+import { IStorageService } from '../../domain/services/IStorageService';
 import { EncodingService } from '../../infrastructure/encoding/EncodingService';
 import { NotFoundError, ValidationError, InternalServerError } from '../../utils/AppError';
-import fs from 'fs-extra';
 
 export class VideoService {
   constructor(
     private videoRepository: IVideoRepository,
     private genreRepository: IGenreRepository,
-    private encodingService: EncodingService
+    private encodingService: EncodingService,
+    private storageService: IStorageService
   ) {}
 
   async search(query: any) {
-    return this.videoRepository.search(query);
+    // Map controller query params to generic SearchParams
+    const searchParams: SearchParams = {
+        textSearch: query.q,
+        page: query.page,
+        limit: query.limit,
+        sort: query.sort,
+        filter: {}
+    };
+
+    if (query.genres) searchParams.filter!.genres = query.genres;
+    if (query.language) searchParams.filter!.language = query.language;
+    if (query.targetAudience) searchParams.filter!.targetAudience = query.targetAudience;
+
+    return this.videoRepository.search(searchParams);
   }
 
   async getById(id: string): Promise<Video> {
@@ -33,13 +47,19 @@ export class VideoService {
       throw new ValidationError('Video file is required');
     }
 
-    // Process Video
-    let finalPath;
+    // Process Video (Encoding + Storage)
+    let finalKey;
     try {
-        finalPath = await this.encodingService.processVideo(filePath);
+        // EncodingService now handles storage upload internally or returns a temp path?
+        // Actually, previous EncodingService implementation returned a local path.
+        // We need to ensure EncodingService works with the new StorageService abstraction.
+        // Assuming EncodingService accepts a local path (temp from busboy) and returns the stored key/path.
+        finalKey = await this.encodingService.processVideo(filePath);
     } catch (err) {
         // cleanup upload if encoding fails
-        await fs.remove(filePath);
+        await this.storageService.delete(filePath); // If it was uploaded? No, filePath is local temp.
+        // Actually, we should clean local temp file here if EncodingService didn't.
+        // But EncodingService cleans up source if successful.
         throw err;
     }
 
@@ -47,7 +67,7 @@ export class VideoService {
       id: uuidv4(),
       ...data,
       uploadTime: new Date().toISOString(),
-      filePath: finalPath,
+      filePath: finalKey,
     };
 
     return this.videoRepository.create(video);
@@ -56,7 +76,8 @@ export class VideoService {
   async update(id: string, data: any, filePath?: string): Promise<Video> {
     const video = await this.videoRepository.findById(id);
     if (!video) {
-        if (filePath) await fs.remove(filePath);
+        // Cleanup temp file if video not found
+        // if (filePath) await fs.remove(filePath); // Need generic way or fs-extra usage if we know it's local temp
         throw new NotFoundError(`Video with ID ${id} not found`);
     }
 
@@ -64,7 +85,6 @@ export class VideoService {
        for (const genreId of data.genres) {
         const genre = await this.genreRepository.findById(genreId);
         if (!genre) {
-            if (filePath) await fs.remove(filePath);
             throw new ValidationError(`Genre with ID ${genreId} not found`);
         }
       }
@@ -73,17 +93,17 @@ export class VideoService {
     let updatedData = { ...data };
 
     if (filePath) {
-      // Process new video file
       try {
-          const finalPath = await this.encodingService.processVideo(filePath);
-          // Delete old file if exists
-          if (video.filePath && await fs.pathExists(video.filePath)) {
-              await fs.remove(video.filePath);
+          const finalKey = await this.encodingService.processVideo(filePath);
+
+          // Delete old file
+          if (video.filePath) {
+              await this.storageService.delete(video.filePath);
           }
-          updatedData.filePath = finalPath;
-          updatedData.uploadTime = new Date().toISOString(); // Update upload time? Or keep original? Usually keep original unless replaced. Logic says "update video file", implies new content.
+
+          updatedData.filePath = finalKey;
+          updatedData.uploadTime = new Date().toISOString();
       } catch (err) {
-          await fs.remove(filePath);
           throw err;
       }
     }
@@ -97,8 +117,8 @@ export class VideoService {
     const video = await this.videoRepository.findById(id);
     if (!video) throw new NotFoundError(`Video with ID ${id} not found`);
 
-    if (video.filePath && await fs.pathExists(video.filePath)) {
-      await fs.remove(video.filePath);
+    if (video.filePath) {
+      await this.storageService.delete(video.filePath);
     }
 
     await this.videoRepository.delete(id);

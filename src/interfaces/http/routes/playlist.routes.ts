@@ -1,12 +1,9 @@
 import { Router } from 'express';
 import { PlaylistController } from '../controllers/PlaylistController';
-import { PlaylistRepository } from '../../../infrastructure/persistence/PlaylistRepository';
-import { VideoRepository } from '../../../infrastructure/persistence/VideoRepository';
 import { PlaylistService } from '../../../application/services/PlaylistService';
+import { container } from '../../../container';
 
-const playlistRepository = new PlaylistRepository();
-const videoRepository = new VideoRepository();
-const playlistService = new PlaylistService(playlistRepository, videoRepository);
+const playlistService = new PlaylistService(container.playlistRepository, container.videoRepository);
 const playlistController = new PlaylistController(playlistService);
 
 const router = Router();

@@ -7,12 +7,13 @@ export class VideoRepository extends FileSystemRepository<Video> implements IVid
     super('videos.json');
   }
 
-  async search(query: { q?: string; genres?: string[]; language?: string; targetAudience?: string; page?: number; limit?: number; sort?: string }): Promise<{ videos: Video[]; total: number }> {
+  async search(params: any): Promise<{ videos: Video[]; total: number }> {
+    // Map SearchParams to local logic
     let videos = await this.readAll();
 
-    // 1. Filter by text (q) - fuzzyish (case insensitive substring)
-    if (query.q) {
-      const q = query.q.toLowerCase();
+    // 1. Text Search
+    if (params.textSearch) {
+      const q = params.textSearch.toLowerCase();
       videos = videos.filter(
         (v) =>
           v.title.toLowerCase().includes(q) ||
@@ -21,37 +22,37 @@ export class VideoRepository extends FileSystemRepository<Video> implements IVid
       );
     }
 
-    // 2. Filter by Genres
-    if (query.genres && query.genres.length > 0) {
-      videos = videos.filter((v) => query.genres!.some((g) => v.genres.includes(g)));
+    // 2. Filters
+    if (params.filter) {
+        Object.keys(params.filter).forEach(key => {
+            const val = params.filter[key];
+            if (val === undefined) return;
+
+            if (key === 'genres' && Array.isArray(val)) {
+                videos = videos.filter(v => val.some((g: string) => v.genres.includes(g)));
+            } else if (key === 'language') {
+                videos = videos.filter(v => v.language.toLowerCase() === val.toLowerCase());
+            } else if (key === 'targetAudience') {
+                videos = videos.filter(v => v.targetAudience.toLowerCase() === val.toLowerCase());
+            }
+        });
     }
 
-    // 3. Filter by Language
-    if (query.language) {
-      videos = videos.filter((v) => v.language.toLowerCase() === query.language!.toLowerCase());
-    }
-
-    // 4. Filter by Target Audience
-    if (query.targetAudience) {
-      videos = videos.filter((v) => v.targetAudience.toLowerCase() === query.targetAudience!.toLowerCase());
-    }
-
-    // 5. Sorting
-    if (query.sort) {
-       // Simple implementation: currently only supporting uploadTime desc/asc
-       if (query.sort === 'uploadTime') {
+    // 3. Sorting
+    if (params.sort) {
+       if (params.sort === 'uploadTime') {
           videos.sort((a, b) => new Date(a.uploadTime).getTime() - new Date(b.uploadTime).getTime());
-       } else if (query.sort === '-uploadTime') {
+       } else if (params.sort === '-uploadTime') {
           videos.sort((a, b) => new Date(b.uploadTime).getTime() - new Date(a.uploadTime).getTime());
        }
     }
 
     const total = videos.length;
 
-    // 6. Pagination
-    if (query.page && query.limit) {
-      const start = (query.page - 1) * query.limit;
-      videos = videos.slice(start, start + query.limit);
+    // 4. Pagination
+    if (params.page && params.limit) {
+      const start = (params.page - 1) * params.limit;
+      videos = videos.slice(start, start + params.limit);
     }
 
     return { videos, total };

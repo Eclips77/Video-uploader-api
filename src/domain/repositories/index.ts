@@ -10,11 +10,19 @@ export interface IGenreRepository extends IRepository<Genre> {
   findByName(name: string): Promise<Genre | null>;
 }
 
+export interface SearchParams {
+  filter?: Record<string, any>; // Key-value exact matches or complex objects
+  textSearch?: string; // For fuzzy search
+  page?: number;
+  limit?: number;
+  sort?: string;
+}
+
 export interface IVideoRepository extends IRepository<Video> {
-  // Add specific query methods for smart search
-  search(query: { q?: string; genres?: string[]; language?: string; targetAudience?: string; page?: number; limit?: number; sort?: string }): Promise<{ videos: Video[]; total: number }>;
+  search(params: SearchParams): Promise<{ videos: Video[]; total: number }>;
 }
 
 export interface IPlaylistRepository extends IRepository<Playlist> {}
 
 import { Genre, Video, Playlist } from '../entities';
+export { Genre, Video, Playlist };

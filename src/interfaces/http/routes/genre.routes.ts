@@ -1,10 +1,9 @@
 import { Router } from 'express';
 import { GenreController } from '../controllers/GenreController';
-import { GenreRepository } from '../../../infrastructure/persistence/GenreRepository';
 import { GenreService } from '../../../application/services/GenreService';
+import { container } from '../../../container';
 
-const genreRepository = new GenreRepository();
-const genreService = new GenreService(genreRepository);
+const genreService = new GenreService(container.genreRepository);
 const genreController = new GenreController(genreService);
 
 const router = Router();

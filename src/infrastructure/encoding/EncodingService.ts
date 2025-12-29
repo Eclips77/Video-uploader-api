@@ -5,10 +5,13 @@ import { config } from '../../config/config';
 import { Logger } from '../logger/Logger';
 import { AppError, InternalServerError } from '../../utils/AppError';
 import { v4 as uuidv4 } from 'uuid';
+import { IStorageService } from '../../domain/services/IStorageService';
 
 const logger = Logger.getInstance();
 
 export class EncodingService {
+  constructor(private storageService: IStorageService) {}
+
   async processVideo(sourcePath: string): Promise<string> {
     logger.info(`Starting video processing for ${sourcePath}`);
 
@@ -17,13 +20,15 @@ export class EncodingService {
       const shouldEncode = this.shouldEncode(metadata);
 
       if (!shouldEncode) {
-        logger.info('Video matches target configuration. Moving file without re-encoding.');
-        // Just move to storage
-        const fileName = `${uuidv4()}.${config.encoding.videoFormat}`;
-        const targetPath = path.join(config.storagePath, 'videos', fileName);
-        await fs.ensureDir(path.dirname(targetPath));
-        await fs.move(sourcePath, targetPath);
-        return targetPath;
+        logger.info('Video matches target configuration. moving to storage.');
+        // Move to final storage via service
+        // Since we are not re-encoding, we upload the temp file directly.
+        // We need to know mimetype or infer it.
+        const mimeType = `video/${config.encoding.videoFormat}`; // Rough inference
+        const fileObj = { path: sourcePath, originalname: `video.${config.encoding.videoFormat}`, mimetype: mimeType };
+
+        const key = await this.storageService.upload(fileObj, 'videos');
+        return key;
       }
 
       logger.info('Video requires encoding/remuxing.');
@@ -78,9 +83,8 @@ export class EncodingService {
   }
 
   private async encode(sourcePath: string): Promise<string> {
-    const fileName = `${uuidv4()}.${config.encoding.videoFormat}`;
-    const targetPath = path.join(config.storagePath, 'videos', fileName);
-    await fs.ensureDir(path.dirname(targetPath));
+    const tempEncodedPath = path.join(config.tempPath, `encoded-${uuidv4()}.${config.encoding.videoFormat}`);
+    await fs.ensureDir(path.dirname(tempEncodedPath));
 
     return new Promise((resolve, reject) => {
       let command = ffmpeg(sourcePath)
@@ -99,20 +103,29 @@ export class EncodingService {
 
       command
         .on('end', async () => {
-          logger.info(`Encoding finished: ${targetPath}`);
-          // Cleanup source if it was temp
+          logger.info(`Encoding finished: ${tempEncodedPath}`);
+          // Upload to storage
           try {
+             const mimeType = `video/${config.encoding.videoFormat}`;
+             const fileObj = { path: tempEncodedPath, originalname: path.basename(tempEncodedPath), mimetype: mimeType };
+             const key = await this.storageService.upload(fileObj, 'videos');
+
+             // Cleanup local temp encoded file
+             await fs.remove(tempEncodedPath);
+             // Cleanup source temp file
              await fs.remove(sourcePath);
-          } catch(e) {
-             logger.warn('Failed to remove temp file', e);
+
+             resolve(key);
+          } catch (e: any) {
+             logger.error('Failed to upload encoded file', e);
+             reject(new InternalServerError(`Upload failed: ${e.message}`));
           }
-          resolve(targetPath);
         })
         .on('error', (err) => {
           logger.error('Encoding error', err);
           reject(new InternalServerError(`Encoding failed: ${err.message}`));
         })
-        .save(targetPath);
+        .save(tempEncodedPath);
     });
   }
 }

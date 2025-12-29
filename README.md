@@ -10,26 +10,26 @@ A production-grade, RESTful API built with **TypeScript** and **Express.js**, de
 -   **Smart Search**: Filter videos by text, genres, language, and target audience.
 -   **Robust Validation**: Input validation using **Zod**.
 -   **Logging**: Singleton Logger implementation with console and file output.
--   **Persistence**: File-based JSON storage (designed with the Repository pattern for easy swapping to a real DB).
--   **Error Handling**: Centralized error handling with unified response format.
+-   **Persistence**: Supports **JSON/FileSystem** (default) or **MongoDB**.
+-   **Storage**: Supports **Local Filesystem** (default) or **AWS S3**.
+-   **Frontend**: Stunning React Dashboard included.
 
 ## 🛠️ Technology Stack
 
 -   **Language**: TypeScript (Strict Mode)
 -   **Framework**: Express.js
--   **File Upload**: Busboy
+-   **Database**: MongoDB (Mongoose) or JSON (File System)
+-   **Storage**: AWS S3 or Local File System
+-   **File Upload**: Busboy / Multer
 -   **Video Processing**: Fluent-FFmpeg
 -   **Validation**: Zod
 -   **Testing**: Jest + Supertest
--   **Utilities**: UUID, fs-extra, dotenv
 
 ## 📋 Prerequisites
 
 -   **Node.js** (v18+ recommended)
 -   **FFmpeg** installed on your system.
-    -   *Linux (Ubuntu/Debian)*: `sudo apt install ffmpeg`
-    -   *macOS*: `brew install ffmpeg`
-    -   *Windows*: Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH.
+-   **MongoDB** (optional, if using Mongo persistence).
 
 ## 📦 Installation
 
@@ -45,115 +45,59 @@ A production-grade, RESTful API built with **TypeScript** and **Express.js**, de
     ```
 
 3.  **Configure Environment:**
-    Create a `.env` file in the root directory (or modify the existing one) with the following default values:
+    Create a `.env` file in the root directory.
 
+    **Default (JSON + Local Storage):**
     ```env
     PORT=3000
     LOG_LEVEL=info
-
-    # Storage Paths
     STORAGE_PATH=./storage
     TEMP_PATH=./temp
+    DB_TYPE=json
+    STORAGE_TYPE=fs
+    ```
 
-    # Smart Encoding Configuration
-    VIDEO_TARGET_CODEC=libx264
-    VIDEO_TARGET_FORMAT=mp4
-    AUDIO_TARGET_CODEC=aac
-    TARGET_FPS=30
-    TARGET_BITRATE=5000k
-    TARGET_RESOLUTION=1920x1080
+    **MongoDB + S3:**
+    ```env
+    PORT=3000
+    LOG_LEVEL=info
+    DB_TYPE=mongo
+    MONGO_URI=mongodb://localhost:27017/video-api
+    STORAGE_TYPE=s3
+    AWS_REGION=us-east-1
+    AWS_ACCESS_KEY_ID=your_key
+    AWS_SECRET_ACCESS_KEY=your_secret
+    AWS_S3_BUCKET=your_bucket
     ```
 
 ## 🚀 Running the Application
 
 ### Development Mode
-Runs the server with hot-reloading (nodemon).
+Runs the server with hot-reloading.
 ```bash
 npm run dev
 ```
 
 ### Production Build
-Compiles TypeScript to JavaScript and runs the optimized build.
 ```bash
 npm run build
 npm start
 ```
 
-The server will start on `http://localhost:3000` (or the configured PORT).
-
 ## 🧪 Testing
 
-The project includes comprehensive integration tests.
-
 ```bash
-# Run all tests
 npm test
-
-# Run tests with coverage report
-npm run test:coverage
 ```
-
-## 📖 API Documentation
-
-### 🎥 Videos
-
--   **GET /api/videos**
-    -   Get all videos.
-    -   *Query Params*:
-        -   `q`: Search text (title, creator, description).
-        -   `genres`: Filter by genre ID(s).
-        -   `language`: Filter by language.
-        -   `targetAudience`: Filter by audience.
-        -   `page`, `limit`: Pagination.
-        -   `sort`: Sort field (e.g., `uploadTime`).
-
--   **POST /api/videos**
-    -   Create a video.
-    -   *Header*: `Content-Type: multipart/form-data`
-    -   *Body*: `title`, `creator`, `description`, `targetAudience`, `language`, `genres` (array of IDs), `video` (file).
-
--   **GET /api/videos/:id** - Get video by ID.
--   **PUT /api/videos/:id** - Update video metadata or file.
--   **DELETE /api/videos/:id** - Delete video.
-
-### 🏷️ Genres
-
--   **GET /api/genres** - Get all genres.
--   **POST /api/genres** - Create a genre (`{ "name": "Action" }`).
--   **PUT /api/genres/:id** - Update a genre.
--   **DELETE /api/genres/:id** - Delete a genre.
-
-### 📜 Playlists
-
--   **GET /api/playlists** - Get all playlists.
--   **POST /api/playlists** - Create a playlist.
--   **PUT /api/playlists/:id** - Smart update.
-    -   *Body Example*:
-        ```json
-        {
-          "name": "New Name",
-          "addVideoIds": ["uuid-1", "uuid-2"],
-          "removeVideoIds": ["uuid-3"]
-        }
-        ```
--   **DELETE /api/playlists/:id** - Delete a playlist.
 
 ## 🏗️ Architecture
 
-The codebase follows the **Clean Architecture** principles:
-
--   **`src/domain`**: Entities and Repository Interfaces. Pure business logic, no dependencies.
--   **`src/application`**: Services and DTOs. Orchestrates business use cases.
--   **`src/infrastructure`**: Implementation details (Persistence, Logger, Encoding).
--   **`src/interfaces`**: Web layer (Controllers, Routes, Middleware).
-
-## 🤝 Contributing
-
-1.  Fork the repository.
-2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
-3.  Commit your changes.
-4.  Push to the branch.
-5.  Open a Pull Request.
+The codebase follows **Clean Architecture**:
+-   **Domain**: Interfaces (`IRepository`, `IStorageService`) and Entities.
+-   **Application**: Services (`VideoService`) containing business logic.
+-   **Infrastructure**: Implementations for Mongo, S3, FS, Logger, FFmpeg.
+-   **Interfaces**: Controllers and Routes.
+-   **Container**: Dependency Injection setup based on config.
 
 ---
 **Author**: Jules (AI Agent)

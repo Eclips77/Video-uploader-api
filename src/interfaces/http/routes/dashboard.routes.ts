@@ -1,13 +1,8 @@
 import { Router } from 'express';
 import { DashboardController } from '../controllers/DashboardController';
-import { VideoRepository } from '../../../infrastructure/persistence/VideoRepository';
-import { GenreRepository } from '../../../infrastructure/persistence/GenreRepository';
-import { PlaylistRepository } from '../../../infrastructure/persistence/PlaylistRepository';
+import { container } from '../../../container';
 
-const videoRepo = new VideoRepository();
-const genreRepo = new GenreRepository();
-const playlistRepo = new PlaylistRepository();
-const dashboardController = new DashboardController(videoRepo, genreRepo, playlistRepo);
+const dashboardController = new DashboardController(container.videoRepository, container.genreRepository, container.playlistRepository);
 
 const router = Router();
 

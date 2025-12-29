@@ -1,14 +1,11 @@
 import { Router } from 'express';
 import { VideoController } from '../controllers/VideoController';
-import { VideoRepository } from '../../../infrastructure/persistence/VideoRepository';
-import { GenreRepository } from '../../../infrastructure/persistence/GenreRepository';
 import { VideoService } from '../../../application/services/VideoService';
 import { EncodingService } from '../../../infrastructure/encoding/EncodingService';
+import { container } from '../../../container';
 
-const videoRepository = new VideoRepository();
-const genreRepository = new GenreRepository();
-const encodingService = new EncodingService();
-const videoService = new VideoService(videoRepository, genreRepository, encodingService);
+const encodingService = new EncodingService(container.storageService);
+const videoService = new VideoService(container.videoRepository, container.genreRepository, encodingService, container.storageService);
 const videoController = new VideoController(videoService);
 
 const router = Router();

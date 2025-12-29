@@ -16,4 +16,11 @@ export const config = {
     targetBitrate: process.env.TARGET_BITRATE || '5000k',
     targetResolution: process.env.TARGET_RESOLUTION || '1920x1080',
   },
+  db: {
+    type: process.env.DB_TYPE || 'json', // 'json' | 'mongo'
+    mongoUri: process.env.MONGO_URI || 'mongodb://localhost:27017/video-api',
+  },
+  storage: {
+    type: process.env.STORAGE_TYPE || 'fs', // 'fs' | 's3'
+  }
 };
