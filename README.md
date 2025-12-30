@@ -100,4 +100,4 @@ The codebase follows **Clean Architecture**:
 -   **Container**: Dependency Injection setup based on config.
 
 ---
-**Author**: Jules (AI Agent)
+**Author**: Eclips
