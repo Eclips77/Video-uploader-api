@@ -1,35 +1,37 @@
-# Video Management API
+# Video Management API (NestJS Edition)
 
-A production-grade, RESTful API built with **TypeScript** and **Express.js**, designed for managing videos, genres, and playlists. This application adheres to **SOLID** principles and **Clean Architecture**, ensuring scalability, maintainability, and testability.
+A production-grade, RESTful API rewritten in **NestJS** and **TypeScript**, designed for managing videos, genres, and playlists. This application adheres to **Domain-Driven Design (DDD)**, **Solid Principles**, and **Event-Driven Architecture**, ensuring scalability, maintainability, and type safety.
 
 ## 🚀 Features
 
+-   **Modular Architecture**: Built with NestJS modules (Videos, Genres, Playlists, Storage, Ffmpeg).
 -   **Video Management**: Upload, update, and manage videos with metadata.
--   **Smart Encoding**: Efficiently processes videos using FFmpeg. Only re-encodes when source properties (Codec, FPS, Resolution, Bitrate) do not match the target configuration.
--   **Playlist Management**: create and manage playlists with smart updates (atomic add/remove).
--   **Smart Search**: Filter videos by text, genres, language, and target audience.
--   **Robust Validation**: Input validation using **Zod**.
--   **Logging**: Singleton Logger implementation with console and file output.
--   **Persistence**: Supports **JSON/FileSystem** (default) or **MongoDB**.
--   **Storage**: Supports **Local Filesystem** (default) or **AWS S3**.
--   **Frontend**: Stunning React Dashboard included.
+-   **Event-Driven Encoding**: Asynchronous video processing using `EventEmitter2`. The API responds immediately after upload, while FFmpeg encodes in the background.
+-   **Smart Encoding**: Efficiently processes videos using `fluent-ffmpeg`.
+-   **Playlist & Genre Management**: Standard CRUD operations with MongoDB persistence.
+-   **Robust Validation**: Strict input validation using **Zod** and Global Pipes.
+-   **Global Error Handling**: Centralized exception filtering for consistent API responses.
+-   **Persistence**: **MongoDB** (Mongoose).
+-   **Storage**: Abstracted storage service supporting **Local Filesystem** (default).
+-   **Security**: Secured with **Helmet** and **CORS**.
+-   **Frontend**: Modern React Dashboard included (Vite + Tailwind).
 
 ## 🛠️ Technology Stack
 
+-   **Framework**: NestJS (Node.js)
 -   **Language**: TypeScript (Strict Mode)
--   **Framework**: Express.js
--   **Database**: MongoDB (Mongoose) or JSON (File System)
--   **Storage**: AWS S3 or Local File System
--   **File Upload**: Busboy / Multer
+-   **Database**: MongoDB (Mongoose)
+-   **Storage**: Local File System (Abstracted)
+-   **File Upload**: Multer (via NestJS `FileInterceptor`)
 -   **Video Processing**: Fluent-FFmpeg
 -   **Validation**: Zod
--   **Testing**: Jest + Supertest
+-   **Events**: @nestjs/event-emitter
 
 ## 📋 Prerequisites
 
 -   **Node.js** (v18+ recommended)
 -   **FFmpeg** installed on your system.
--   **MongoDB** (optional, if using Mongo persistence).
+-   **MongoDB** running locally or accessible via URI.
 
 ## 📦 Installation
 
@@ -45,40 +47,34 @@ A production-grade, RESTful API built with **TypeScript** and **Express.js**, de
     ```
 
 3.  **Configure Environment:**
-    Create a `.env` file in the root directory.
+    The application validates environment variables on startup. Create a `.env` file in the root directory:
 
-    **Default (JSON + Local Storage):**
     ```env
     PORT=3000
     LOG_LEVEL=info
+    MONGO_URI=mongodb://localhost:27017/video-api
     STORAGE_PATH=./storage
     TEMP_PATH=./temp
-    DB_TYPE=json
-    STORAGE_TYPE=fs
-    ```
 
-    **MongoDB + S3:**
-    ```env
-    PORT=3000
-    LOG_LEVEL=info
-    DB_TYPE=mongo
-    MONGO_URI=mongodb://localhost:27017/video-api
-    STORAGE_TYPE=s3
-    AWS_REGION=us-east-1
-    AWS_ACCESS_KEY_ID=your_key
-    AWS_SECRET_ACCESS_KEY=your_secret
-    AWS_S3_BUCKET=your_bucket
+    # Encoding Configuration
+    VIDEO_TARGET_CODEC=libx264
+    VIDEO_TARGET_FORMAT=mp4
+    AUDIO_TARGET_CODEC=aac
+    TARGET_FPS=30
+    TARGET_BITRATE=5000k
+    TARGET_RESOLUTION=1920x1080
     ```
 
 ## 🚀 Running the Application
 
 ### Development Mode
-Runs the server with hot-reloading.
+Runs the server with hot-reloading (using Nodemon).
 ```bash
 npm run dev
 ```
 
 ### Production Build
+Compiles the NestJS backend and React frontend.
 ```bash
 npm run build
 npm start
@@ -92,12 +88,21 @@ npm test
 
 ## 🏗️ Architecture
 
-The codebase follows **Clean Architecture**:
--   **Domain**: Interfaces (`IRepository`, `IStorageService`) and Entities.
--   **Application**: Services (`VideoService`) containing business logic.
--   **Infrastructure**: Implementations for Mongo, S3, FS, Logger, FFmpeg.
--   **Interfaces**: Controllers and Routes.
--   **Container**: Dependency Injection setup based on config.
+The codebase is organized into modular NestJS components:
+
+-   **`src/app.module.ts`**: Root module configuring generic imports (Config, Mongoose, EventEmitter).
+-   **`src/common/`**: Shared utilities (Zod Validation Pipe, Global Exception Filter, Config Validation).
+-   **`src/modules/`**:
+    -   **`videos/`**: Handles video uploads and metadata. Emits `video.uploaded` events.
+    -   **`genres/`**: CRUD for video genres.
+    -   **`playlists/`**: CRUD for playlists.
+    -   **`storage/`**: Abstracted file storage (Local implementation provided).
+    -   **`ffmpeg/`**: Service for video encoding logic.
+
+### Video Upload Flow
+1.  **Controller**: Receives file -> Validates -> Calls Service.
+2.  **Service**: Saves file to storage -> Saves `PENDING` record to DB -> Emits `VideoUploadedEvent`.
+3.  **Listener**: Listens for event -> Triggers FFmpeg encoding -> Updates DB to `ACTIVE` or `FAILED`.
 
 ---
-**Author**: Eclips
+**Legacy Code**: The original Express.js implementation is preserved in `src_legacy/` for reference.
