@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import { v4 as uuidv4 } from 'uuid';
 import { VideoService } from '../../../application/services/VideoService';
 import { createVideoSchema, updateVideoSchema } from '../../../application/dtos/video.dto';
+import { normalizeGenres } from '../../../utils/normalization';
 import { ValidationError, BadRequestError } from '../../../utils/AppError';
 import { config } from '../../../config/config';
 
@@ -102,17 +103,10 @@ export class VideoController {
       // Let's assume clients send 'genres' multiple times or JSON stringified.
       // For simplicity, let's try to parse if it looks like JSON array, or handle busboy array.
 
-      let genres = fields.genres;
-      if (typeof genres === 'string') {
-          // Attempt to parse JSON
-          try {
-              genres = JSON.parse(genres);
-          } catch {
-              genres = [genres];
-          }
+      fields.genres = normalizeGenres(fields);
+      if (fields['genres[]']) {
+          delete fields['genres[]'];
       }
-      if (!genres) genres = [];
-      fields.genres = genres;
 
       const validated = createVideoSchema.safeParse(fields);
       if (!validated.success) {
@@ -138,16 +132,11 @@ export class VideoController {
         filePath = result.filePath;
 
         // Normalize genres again if present
-        if (data.genres) {
-            let genres = data.genres;
-             if (typeof genres === 'string') {
-                try {
-                    genres = JSON.parse(genres);
-                } catch {
-                    genres = [genres];
-                }
+        if (data.genres !== undefined || data['genres[]'] !== undefined) {
+            data.genres = normalizeGenres(data);
+            if (data['genres[]']) {
+                delete data['genres[]'];
             }
-            data.genres = genres;
         }
       }
 
