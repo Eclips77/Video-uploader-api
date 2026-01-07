@@ -1,13 +1,13 @@
 {
   "name": "app",
   "version": "1.0.0",
-  "description": "Production-grade RESTful API in TypeScript with Express.js",
-  "main": "dist/server.js",
+  "description": "Production-grade RESTful API in TypeScript with NestJS",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc && npm run build:client",
     "build:client": "cd client && npm install && npm run build",
-    "start": "node dist/server.js",
-    "dev": "nodemon src/server.ts",
+    "start": "node dist/main.js",
+    "dev": "nodemon src/main.ts",
     "dev:client": "cd client && npm run dev",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -19,7 +19,7 @@
   },
   "keywords": [
     "typescript",
-    "express",
+    "nestjs",
     "video",
     "api",
     "upload",
