@@ -19,6 +19,19 @@ export const Videos = () => {
     }
   });
 
+  const { data: genresData } = useQuery({
+    queryKey: ['genres'],
+    queryFn: async () => (await api.get('/genres')).data.data
+  });
+
+  const genreMap = React.useMemo(() => {
+    if (!genresData) return {};
+    return genresData.reduce((acc: any, genre: any) => {
+      acc[genre.id] = genre.name;
+      return acc;
+    }, {});
+  }, [genresData]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -81,7 +94,7 @@ export const Videos = () => {
                            <div className="mt-auto flex gap-2 flex-wrap">
                                {video.genres.map((g: string) => (
                                    <span key={g} className="text-[10px] px-2 py-1 bg-white/5 rounded-full text-textMuted border border-white/5">
-                                      {g} {/* Need to map ID to name in real app */}
+                                      {genreMap[g] || g}
                                    </span>
                                ))}
                            </div>
